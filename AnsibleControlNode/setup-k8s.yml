@@ -1,0 +1,78 @@
+---
+- name: Instalación de Docker, kubeadm, kubelet y kubectl en Debian
+  hosts: debian_nodes
+  become: yes
+
+  tasks:
+    - name: Actualiza el sistema
+      apt:
+        update_cache: yes
+        upgrade: dist
+
+    - name: Instalar dependencias necesarias
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+
+    - name: Desactivar swap temporalmente
+      command: swapoff -a
+
+    - name: Comentar entrada de swap en /etc/fstab para desactivarlo permanentemente
+      replace:
+        path: /etc/fstab
+        regexp: '^([^#].*\sswap\s)'
+        replace: '# \1'
+
+    - name: Agregar GPG key de Docker
+      apt_key:
+        url: https://download.docker.com/linux/debian/gpg
+        state: present
+
+    - name: Agregar repositorio Docker
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+        state: present
+        filename: docker
+
+    - name: Instalar Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+        update_cache: yes
+
+    - name: Agregar GPG key de Kubernetes
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+
+    - name: Agregar repositorio Kubernetes
+      apt_repository:
+        repo: "deb http://apt.kubernetes.io/ kubernetes-xenial main"
+        state: present
+        filename: kubernetes
+
+    - name: Instalar kubelet, kubeadm y kubectl
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+        update_cache: yes
+
+    - name: Marcar paquetes de Kubernetes en hold
+      command: apt-mark hold kubelet kubeadm kubectl
+
+    - name: Habilitar Docker en el arranque
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
