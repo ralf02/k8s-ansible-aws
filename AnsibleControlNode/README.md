@@ -40,3 +40,7 @@ sudo apt update && sudo apt install ansible -y
 ansible-playbook -i inventory.ini setup-k8s.yml
 
 ```
+
+---
+
+¡Ansible listo para automatizar!

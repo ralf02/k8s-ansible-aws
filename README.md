@@ -116,7 +116,7 @@ Una vez completados todos los pasos:
    ```bash
    sudo kubeadm reset -f
    sudo systemctl restart kubelet
-   delete ~/.kube/config  # Si aplica
+   delete ~/.kube/config
    ```
 Luego, se puede volver a ejecutar los pasos de unión o inicialización según el rol del nodo.
 

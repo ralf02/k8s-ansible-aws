@@ -4,7 +4,7 @@
   become: yes
 
   tasks:
-    - name: Actualiza el sistema
+    - name: Actualizar el sistema
       apt:
         update_cache: yes
         upgrade: dist
