@@ -44,3 +44,5 @@ ansible-playbook -i inventory.ini setup-k8s.yml
 ---
 
 ¡Ansible listo para automatizar!
+
+![Evidencia Ansible](../img/evidence-ansible.png)

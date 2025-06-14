@@ -1,9 +1,30 @@
 ---
-- name: Instalación de Docker, kubeadm, kubelet y kubectl en Debian
+- name: Instalación de Docker, kubeadm, kubelet y kubectl en Debian 12
   hosts: debian_nodes
   become: yes
 
   tasks:
+
+    - name: Reestablecer sources.list
+      copy:
+        dest: /etc/apt/sources.list
+        content: |
+          deb http://deb.debian.org/debian bookworm main
+          deb http://security.debian.org/debian-security bookworm-security main
+          deb http://deb.debian.org/debian bookworm-updates main
+        mode: '0644'
+
+    - name: Eliminar repo de Docker si existe
+      file:
+        path: /etc/apt/sources.list.d/docker.list
+        state: absent
+      ignore_errors: yes
+
+    - name: Eliminar repositorio Kubernetes si existe
+      file:
+        path: /etc/apt/sources.list.d/kubernetes.list
+        state: absent
+
     - name: Actualizar el sistema
       apt:
         update_cache: yes
@@ -18,6 +39,7 @@
           - gnupg
           - lsb-release
         state: present
+        update_cache: yes
 
     - name: Desactivar swap temporalmente
       command: swapoff -a
@@ -28,16 +50,24 @@
         regexp: '^([^#].*\sswap\s)'
         replace: '# \1'
 
+    - name: Crear directorio de keyrings si no existe
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
     - name: Agregar GPG key de Docker
-      apt_key:
+      get_url:
         url: https://download.docker.com/linux/debian/gpg
-        state: present
+        dest: /etc/apt/keyrings/docker.asc
+        mode: '0644'
 
     - name: Agregar repositorio Docker
-      apt_repository:
-        repo: "deb [arch=amd64] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
-        state: present
-        filename: docker
+      copy:
+        dest: /etc/apt/sources.list.d/docker.list
+        content: |
+          deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable
+        mode: '0644'
 
     - name: Instalar Docker
       apt:
@@ -49,15 +79,17 @@
         update_cache: yes
 
     - name: Agregar GPG key de Kubernetes
-      apt_key:
-        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
-        state: present
+      get_url:
+        url: https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key
+        dest: /etc/apt/keyrings/kubernetes-apt-keyring.asc
+        mode: '0644'
 
     - name: Agregar repositorio Kubernetes
-      apt_repository:
-        repo: "deb http://apt.kubernetes.io/ kubernetes-xenial main"
-        state: present
-        filename: kubernetes
+      copy:
+        dest: /etc/apt/sources.list.d/kubernetes.list
+        content: |
+          deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.asc] https://pkgs.k8s.io/core:/stable:/v1.33/deb/ /
+        mode: '0644'
 
     - name: Instalar kubelet, kubeadm y kubectl
       apt:
@@ -70,6 +102,12 @@
 
     - name: Marcar paquetes de Kubernetes en hold
       command: apt-mark hold kubelet kubeadm kubectl
+
+    - name: Habilitar kubelet en el arranque
+      systemd:
+        name: kubelet
+        enabled: yes
+        state: started
 
     - name: Habilitar Docker en el arranque
       systemd:
