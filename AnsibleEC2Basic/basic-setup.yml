@@ -1,0 +1,137 @@
+---
+- name: Instalación de Docker y GitLab Runner Debian 12
+  hosts: debian_basic
+  become: yes
+
+  tasks:
+
+    - name: Creacion directorio de keyrings
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Actualizacion del sistema
+      block:
+        - name: Actualizar caché de apt
+          apt:
+            update_cache: yes
+
+        - name: Actualizar paquetes del sistema
+          apt:
+            upgrade: dist
+
+      rescue:
+        - name: Mensaje de error en actualización
+          debug:
+            msg: "Error al actualizar el sistema. Se procederá a limpiar los repositorios y restablecer sources.list."
+
+        - name: Eliminar todos los repositorios personalizados
+          file:
+            path: /etc/apt/sources.list.d/
+            state: absent
+            recurse: yes
+          ignore_errors: yes
+
+        - name: Restablecer sources.list por defecto de Debian 12
+          copy:
+            dest: /etc/apt/sources.list
+            content: |
+              deb http://deb.debian.org/debian bookworm main
+              deb http://security.debian.org/debian-security bookworm-security main
+              deb http://deb.debian.org/debian bookworm-updates main
+            mode: '0644'
+
+        - name: Reintentar actualización después de restaurar sources.list
+          apt:
+            update_cache: yes
+            upgrade: dist
+
+    - name: Instalación Docker
+      block:
+        - name: Instalar dependencias para Docker
+          apt:
+            name:
+              - apt-transport-https
+              - ca-certificates
+              - curl
+              - gnupg
+              - lsb-release
+            state: present
+
+        - name: Agregar GPG key de Docker
+          get_url:
+            url: https://download.docker.com/linux/debian/gpg
+            dest: /etc/apt/keyrings/docker.asc
+            mode: '0644'
+
+        - name: Agregar repositorio Docker
+          copy:
+            dest: /etc/apt/sources.list.d/docker.list
+            content: |
+              deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable
+            mode: '0644'
+
+        - name: Instalar Docker
+          apt:
+            name:
+              - docker-ce
+              - docker-ce-cli
+              - containerd.io
+            state: present
+            update_cache: yes
+
+        - name: Habilitar Docker
+          systemd:
+            name: docker
+            enabled: yes
+            state: started
+
+      rescue:
+        - name: Eliminar repositorio Docker fallido
+          file:
+            path: /etc/apt/sources.list.d/docker.list
+            state: absent
+          ignore_errors: yes
+
+        - name: Mostrar mensaje de error en Docker
+          debug:
+            msg: "Error en la instalación de Docker. Revisar acceso al repositorio o la clave GPG."
+
+    - name: Instalación de GitLab Runner
+      block:
+        - name: Agregar GPG key de GitLab Runner
+          get_url:
+            url: https://packages.gitlab.com/gpg.key
+            dest: /etc/apt/keyrings/gitlab.asc
+            mode: '0644'
+
+        - name: Agregar repositorio GitLab Runner
+          copy:
+            dest: /etc/apt/sources.list.d/runner_gitlab_ci.list
+            content: |
+              deb [signed-by=/etc/apt/keyrings/gitlab.asc] https://packages.gitlab.com/runner/gitlab-runner/debian/ bookworm main
+            mode: '0644'
+
+        - name: Instalar GitLab Runner
+          apt:
+            name: gitlab-runner
+            state: present
+            update_cache: yes
+
+        - name: Habilitar GitLab Runner
+          systemd:
+            name: gitlab-runner
+            enabled: yes
+            state: started
+
+      rescue:
+        - name: Eliminar repositorio GitLab Runner fallido
+          file:
+            path: /etc/apt/sources.list.d/runner_gitlab_ci.list
+            state: absent
+          ignore_errors: yes
+
+        - name: Mostrar mensaje de error de GitLab Runner
+          debug:
+            msg: "Error al instalar GitLab Runner. Verificar conectividad o claves GPG."

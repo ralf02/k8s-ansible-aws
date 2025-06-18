@@ -13,13 +13,13 @@ Este proyecto permite usar Ansible desde tu máquina designada desde donde se la
 
 - Instancias EC2 corriendo Debian.
 - Acceso SSH mediante archivo `.pem` (keypair de AWS).
-- Ansible instalado en tu máquina local.
+- Ansible instalado en la máquina desiganada como master.
 
 ---
 
 ### Instalacion Ansible
 
-En una máquina con Debian/Ubuntu:
+En una máquina con Debian:
 
 ```bash
 sudo apt update && sudo apt install ansible -y
